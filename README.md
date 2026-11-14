@@ -1,36 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Projeto Solimões · site
 
-## Getting Started
+Plataforma web do Projeto Solimões (Hack@Poli 2026): monitoramento de sistemas solares isolados em comunidades
+ribeirinhas, com fila de chamados entre engenheiros voluntários e agentes locais.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router, `cacheComponents` desligado), hospedagem pensada para a Vercel
+- Neon: Postgres (driver `pg` com pool) e Neon Auth (Managed Better Auth, `@neon/auth`)
+- Leaflet + OpenStreetMap para o mapa, Chart.js para os gráficos
+- Indicadores e regras de alerta em SQL, nas views de `db/migrations`
+
+## Rodar localmente
 
 ```bash
+npm install
+neon deploy          # provisiona Postgres + Auth e grava .env.local
+npm run db:migrate   # aplica db/migrations em ordem
+npm run db:seed      # dados de demonstração + contas demo
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`npm run sql -- "select ..."` roda uma consulta avulsa no banco.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Perfis e telas
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Perfil | Tela | Conta demo |
+| --- | --- | --- |
+| Engenheiro voluntário | `/painel` (mapa, sistemas, chamados, protocolos, logística, impacto) | `marina@example.org`, `pedro@example.org` |
+| Coordenação | `/painel` + `/painel/cadastros` | `coordenacao@example.org` |
+| Agente local | `/agente` (tarefas passo a passo, guias, mensagens) | `raimunda@example.org`, `joao@example.org` |
+| Morador | `/casa` (energia da casa, o que dá para usar à noite) | `francisca@example.org`, `lima@example.org` |
 
-## Learn More
+A senha das contas demo é gerada pelo seed e fica em `DEMO_PASSWORD`, no `.env.local`. A página `/` (impacto) é pública.
 
-To learn more about Next.js, take a look at the following resources:
+## Onde está cada coisa
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `db/migrations/001_schema.sql`: tabelas
+- `db/migrations/002_indicators.sql`: relógio da aplicação, agregados diários, Rint, capacidade, estresse,
+  índice de saúde, status e `refresh_alerts()` (regras de alerta, abertura de chamados e verificação automática)
+- `003_pr_bulk.sql`: PR calculado só nos intervalos em que o controlador não limita a geração
+- `005_history_impact.sql`: evolução diária da saúde e indicadores de impacto
+- `006_clock_fast.sql`: relógio da demo guardado em `settings`
+- `scripts/seed.ts`: simulação física dos 30 dias e falhas injetadas
+- `src/lib/queries.ts`: todas as leituras do site; `src/app/actions.ts`: todas as escritas
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Relógio da demo
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Em modo `demo` (padrão do seed), `app_now()` devolve `settings.demo_now`, o instante do último pacote gerado, para
+os dados não envelhecerem. Quando os dados reais do ESP32 começarem a chegar, mude `settings.clock` para `live`.
